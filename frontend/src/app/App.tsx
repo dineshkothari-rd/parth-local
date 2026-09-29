@@ -18,8 +18,9 @@ function HomePage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-5 sm:px-6 sm:py-6">
       <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Primary navigation">
-        <Link className="text-xl font-bold text-emerald-800" to="/">
-          NearKart
+        <Link className="flex items-center gap-2 text-2xl font-black text-emerald-800" to="/">
+          Walkit
+          <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Local Radar</span>
         </Link>
         <div className="flex items-center gap-3 text-sm font-semibold sm:gap-4">
           <Link className="text-stone-700 hover:text-emerald-800" to="/login">Sign in</Link>
@@ -66,7 +67,7 @@ function AccountPage() {
   const { user, logout } = useAuth()
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-      <Link className="text-xl font-bold text-emerald-800" to="/">NearKart</Link>
+      <Link className="text-2xl font-black text-emerald-800" to="/">Walkit</Link>
       <section className="mt-10 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:mt-16 sm:p-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Signed in</p>
         <h1 className="mt-2 break-words text-2xl font-bold text-stone-950 sm:text-3xl">Hello, {user?.displayName}</h1>

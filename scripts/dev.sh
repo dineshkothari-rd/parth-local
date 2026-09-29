@@ -15,10 +15,14 @@ for tool in docker java node npm openssl curl lsof pgrep; do
 done
 
 for port in 8080 5173; do
-	if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-		echo "Port $port is already in use. Stop that process and run this command again:" >&2
-		echo "  lsof -nP -iTCP:$port -sTCP:LISTEN" >&2
-		exit 1
+	existing_pid=$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+	if [ -n "$existing_pid" ]; then
+		echo "Port $port was in use by PID $existing_pid. Stopping previous instance..."
+		kill -TERM $existing_pid 2>/dev/null || true
+		sleep 1
+		if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+			kill -9 $existing_pid 2>/dev/null || true
+		fi
 	fi
 done
 
@@ -89,7 +93,7 @@ until curl --fail --silent http://localhost:5173 >/dev/null 2>&1; do
 done
 
 echo ""
-echo "NearKart is starting:"
+echo "Walkit is running:"
 echo "  App:    http://localhost:5173"
 echo "  Health: http://localhost:8080/actuator/health"
 echo "Press Ctrl+C to stop everything."

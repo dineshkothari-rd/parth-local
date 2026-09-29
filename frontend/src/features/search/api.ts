@@ -18,6 +18,8 @@ export type Offer = {
   recommendation: { score: number; reason: string }
 }
 
+export type NearbyOffer = Offer
+
 export const nearbySearch = (q: string, latitude: number, longitude: number, token?: string) =>
   apiRequest<{ content: Offer[] }>(
     `/search/nearby?${new URLSearchParams({ q, latitude: String(latitude), longitude: String(longitude) })}`,
