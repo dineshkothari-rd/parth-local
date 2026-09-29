@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: "17"
           cache: maven
       - run: ./mvnw -B verify
       - run: ./mvnw -B spring-boot:start

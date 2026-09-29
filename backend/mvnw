@@ -32,11 +32,6 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
-if [ -z "${JAVA_HOME-}" ] && [ -d "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home" ]; then
-  export JAVA_HOME="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
-  export PATH="$JAVA_HOME/bin:$PATH"
-fi
-
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in
