@@ -3,6 +3,13 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
+if [ -z "${JAVA_HOME:-}" ]; then
+	if [ -d "/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home" ]; then
+		export JAVA_HOME="/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home"
+		export PATH="$JAVA_HOME/bin:$PATH"
+	fi
+fi
+
 for tool in docker java node npm openssl curl lsof pgrep; do
 	command -v "$tool" >/dev/null 2>&1 || { echo "Missing required command: $tool" >&2; exit 1; }
 done

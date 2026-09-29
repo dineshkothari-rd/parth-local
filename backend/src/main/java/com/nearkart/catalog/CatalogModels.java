@@ -36,5 +36,3 @@ final class CatalogModels {
 		Integer quantity, Availability availability, String freshness, Instant observedAt,
 		int inventoryVersion, int priceVersion) {}
 }
-
-enum Availability { AVAILABLE, LOW_STOCK, OUT_OF_STOCK, UNKNOWN }

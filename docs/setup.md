@@ -2,21 +2,21 @@
 
 ## Inspected on 2026-09-05
 
-| Tool | Detected | Decision |
-|---|---:|---|
-| macOS | 27.0 (26A5425a) | Supported developer host |
-| Java | OpenJDK 17.0.20.1 LTS | Backend baseline |
-| Maven | Not installed | Commit Maven Wrapper in Phase 1 |
-| Node.js | 24.19.0 | Use Node 24 LTS |
-| npm | 11.17.0 | Package manager |
-| Git | 2.50.1 | Supported |
-| Docker | 29.8.0 | Local infrastructure |
-| Docker Compose | 5.5.1 | Local orchestration |
-| `psql` / `pg_isready` | Not installed | PostgreSQL runs in Docker |
+| Tool                  |        Detected | Decision                        |
+| --------------------- | --------------: | ------------------------------- |
+| macOS                 | 27.0 (26A5425a) | Supported developer host        |
+| Java                  |  OpenJDK 25 LTS | Backend runtime                 |
+| Maven                 |   Not installed | Commit Maven Wrapper in Phase 1 |
+| Node.js               |         24.19.0 | Use Node 24 LTS                 |
+| npm                   |         11.17.0 | Package manager                 |
+| Git                   |          2.50.1 | Supported                       |
+| Docker                |          29.8.0 | Local infrastructure            |
+| Docker Compose        |           5.5.1 | Local orchestration             |
+| `psql` / `pg_isready` |   Not installed | PostgreSQL runs in Docker       |
 
 ## Version baseline
 
-- Java 17 and Spring Boot 4.1.1
+- Java 25 and Spring Boot 4.1.1
 - Maven Wrapper 3.9.x
 - Node.js 24 LTS and npm 11
 - React 19, TypeScript, and current stable Vite compatible with Node 24

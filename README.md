@@ -11,7 +11,7 @@ Phase 7 owner dashboard is complete: responsive web/mobile screens now cover sto
 ## Architecture
 
 - React + TypeScript + Vite customer and operations UI
-- Java 17 + Spring Boot 4.1 modular monolith
+- Java 25 + Spring Boot 4.1 modular monolith
 - PostgreSQL with Flyway migrations
 - REST APIs under `/api/v1`
 - Stateless short-lived access JWTs with rotated refresh tokens
@@ -32,7 +32,7 @@ nearkart/
 
 ## Prerequisites
 
-- Java 17
+- Java 17 LTS (e.g. Azul Zulu 17 or Temurin 17)
 - Node.js 24 LTS and npm 11
 - Docker 29+ with Compose
 - Git
