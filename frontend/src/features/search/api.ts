@@ -24,5 +24,3 @@ export const nearbySearch = (q: string, latitude: number, longitude: number, tok
     {},
     token,
   ).then((page) => page.content)
-
-export type NearbyOffer = Offer
