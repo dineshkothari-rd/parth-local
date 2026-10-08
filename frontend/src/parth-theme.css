@@ -1,0 +1,32 @@
+/* Generated from Parth Software Labs design/parth.json. */
+:root {
+  --parth-canvas: #F6F7FA;
+  --parth-surface: #FFFFFF;
+  --parth-raised: #FAFBFD;
+  --parth-soft: #EEF1F7;
+  --parth-text: #151925;
+  --parth-muted: #586175;
+  --parth-subtle: #727D92;
+  --parth-border: #DCE0E8;
+  --parth-brand: #284DE8;
+  --parth-brandHover: #1D3BBA;
+  --parth-brandSoft: #EAF0FF;
+  --parth-onBrand: #FFFFFF;
+  --parth-success: #167450;
+  --parth-successSoft: #E3F3EB;
+  --parth-warning: #95620E;
+  --parth-warningSoft: #FFF3D6;
+  --parth-danger: #B63838;
+  --parth-dangerSoft: #FCE9E9;
+  --parth-panel: #151925;
+  --parth-panelText: #F5F7FC;
+  --parth-panelMuted: #C0CADF;
+  --parth-link: #284DE8;
+  --parth-font: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+  --parth-control-radius: 10px;
+  --parth-card-radius: 16px;
+}
+body { font-family: var(--parth-font); }
+button, input, select, textarea { font: inherit; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--parth-brand); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

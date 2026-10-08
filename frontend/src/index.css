@@ -1,9 +1,10 @@
 @import "tailwindcss";
+@import "./parth-theme.css";
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #1c1917;
-  background: #fafaf9;
+  font-family: var(--parth-font);
+  color: var(--parth-text);
+  background: var(--parth-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -16,4 +17,19 @@ button,
 input,
 select {
   font: inherit;
+}
+
+@theme {
+  --color-emerald-50: var(--parth-brandSoft);
+  --color-emerald-600: var(--parth-brand);
+  --color-emerald-700: var(--parth-brand);
+  --color-emerald-800: var(--parth-brandHover);
+  --color-stone-50: var(--parth-canvas);
+  --color-stone-100: var(--parth-soft);
+  --color-stone-200: var(--parth-border);
+  --color-stone-500: var(--parth-muted);
+  --color-stone-600: var(--parth-muted);
+  --color-stone-700: var(--parth-text);
+  --color-stone-900: var(--parth-text);
+  --color-stone-950: var(--parth-text);
 }
