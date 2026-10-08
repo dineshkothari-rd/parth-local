@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Route, Routes, useNavigate } from 'react-router-dom'
+import { AdminPage } from '../features/admin/AdminPage'
+import { RequestsPage } from '../features/requests/Requests'
+import { RecoveryPage } from '../features/auth/RecoveryPage'
 import { AuthPage } from '../features/auth/AuthPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { ProtectedRoute } from '../features/auth/ProtectedRoute'
@@ -19,7 +22,7 @@ function HomePage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-5 sm:px-6 sm:py-6">
       <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Primary navigation">
         <Link className="text-xl font-bold text-emerald-800" to="/">
-          NearKart
+          Parth Local
         </Link>
         <div className="flex items-center gap-3 text-sm font-semibold sm:gap-4">
           <Link className="text-stone-700 hover:text-emerald-800" to="/login">Sign in</Link>
@@ -66,15 +69,16 @@ function AccountPage() {
   const { user, logout } = useAuth()
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-      <Link className="text-xl font-bold text-emerald-800" to="/">NearKart</Link>
+      <Link className="text-xl font-bold text-emerald-800" to="/">Parth Local</Link>
       <section className="mt-10 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:mt-16 sm:p-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Signed in</p>
         <h1 className="mt-2 break-words text-2xl font-bold text-stone-950 sm:text-3xl">Hello, {user?.displayName}</h1>
         <p className="mt-2 break-all text-stone-600">{user?.email}</p>
         <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
           {user?.roles.includes('STORE_OWNER') && <Link className="font-semibold text-emerald-800 underline" to="/owner/stores">Manage stores</Link>}
-          {user?.roles.includes('ADMIN') && <Link className="font-semibold text-emerald-800 underline" to="/admin/stores">Review stores</Link>}
+          {user?.roles.includes('ADMIN') && <Link className="font-semibold text-emerald-800 underline" to="/admin">Administration</Link>}
           {user?.roles.includes('CUSTOMER') && <Link className="font-semibold text-emerald-800 underline" to="/saved">Favorites and history</Link>}
+          {user?.roles.includes('CUSTOMER') && <Link className="font-semibold text-emerald-800 underline" to="/requests">My requests</Link>}
         </div>
         <button className="mt-8 min-h-11 w-full rounded-xl border border-stone-300 px-4 py-2 font-semibold sm:w-auto" onClick={() => void logout()} type="button">
           Sign out
@@ -90,6 +94,7 @@ export function App() {
       <Route element={<HomePage />} path="/" />
       <Route element={<AuthPage mode="login" />} path="/login" />
       <Route element={<AuthPage mode="register" />} path="/register" />
+      <Route element={<RecoveryPage />} path="/recover" />
       <Route element={<SearchPage />} path="/search" />
       <Route element={<ProductPage />} path="/products/:id" />
       <Route element={<StorePage />} path="/stores/:id" />
@@ -101,10 +106,12 @@ export function App() {
         <Route element={<OwnerDashboardPage />} path="/owner/stores/:id" />
       </Route>
       <Route element={<ProtectedRoute role="ADMIN" />}>
+        <Route element={<AdminPage />} path="/admin" />
         <Route element={<AdminStoresPage />} path="/admin/stores" />
       </Route>
       <Route element={<ProtectedRoute role="CUSTOMER" />}>
         <Route element={<SavedPage />} path="/saved" />
+        <Route element={<RequestsPage />} path="/requests" />
       </Route>
     </Routes>
   )

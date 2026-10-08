@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { createStore, decideStore, listOwnedStores, listPendingStores, type CreateStoreInput } from './api'
+import { createStore, decideStore, listOwnedStores, listPendingStores, type CreateStoreInput, type Store } from './api'
 
 export const inputClass = 'min-h-11 w-full min-w-0 rounded-lg border border-stone-300 px-3'
 
@@ -20,7 +20,8 @@ export function OwnerStoresPage() {
   const { accessToken } = useAuth()
   const token = accessToken!
   const queryClient = useQueryClient()
-  const stores = useQuery({ queryKey: ['owner-stores'], queryFn: () => listOwnedStores(token) })
+  const [page, setPage] = useState(0)
+  const stores = useQuery({ queryKey: ['owner-stores', page], queryFn: () => listOwnedStores(token, page) })
   const create = useMutation({
     mutationFn: (input: CreateStoreInput) => createStore(token, input),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['owner-stores'] }),
@@ -65,7 +66,8 @@ export function OwnerStoresPage() {
         </button>
       </form>
       {stores.error && <p className="mt-6 text-red-700" role="alert">{stores.error.message}</p>}
-      <StoreList stores={stores.data} loading={stores.isLoading} actions={(id) => <Link className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-4 font-semibold text-white" to={`/owner/stores/${id}`}>Manage store</Link>} />
+      <StoreList stores={stores.data?.content} loading={stores.isLoading} actions={(id) => <Link className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-emerald-700 px-4 font-semibold text-white" to={`/owner/stores/${id}`}>Manage store</Link>} />
+      <StorePagination page={page} size={20} total={stores.data?.totalElements ?? 0} disabled={stores.isFetching} onChange={setPage} />
     </PageShell>
   )
 }
@@ -74,28 +76,32 @@ export function AdminStoresPage() {
   const { accessToken } = useAuth()
   const token = accessToken!
   const queryClient = useQueryClient()
-  const stores = useQuery({ queryKey: ['pending-stores'], queryFn: () => listPendingStores(token) })
+  const [page, setPage] = useState(0)
+  const stores = useQuery({ queryKey: ['pending-stores', page], queryFn: () => listPendingStores(token, page) })
   const decide = useMutation({
     mutationFn: ({ id, decision, reason }: { id: string; decision: 'APPROVE' | 'REJECT'; reason?: string }) => decideStore(token, id, decision, reason),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['pending-stores'] }),
   })
   return (
     <PageShell title="Pending store approvals">
-      <StoreList stores={stores.data} loading={stores.isLoading} actions={(id) => (
+      <Link className="mt-4 inline-block underline" to="/admin">← Administration</Link>
+      {stores.error && <p className="mt-4 text-red-700" role="alert">{stores.error.message}</p>}
+      <StoreList stores={stores.data?.content} loading={stores.isLoading} actions={(id) => (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
-          <button className="min-h-11 rounded-lg bg-emerald-700 px-3 py-2 font-semibold text-white" onClick={() => decide.mutate({ id, decision: 'APPROVE' })} type="button">Approve</button>
-          <button className="min-h-11 rounded-lg border px-3 py-2 font-semibold" onClick={() => {
+          <button className="min-h-11 rounded-lg bg-emerald-700 px-3 py-2 font-semibold text-white" disabled={decide.isPending} onClick={() => decide.mutate({ id, decision: 'APPROVE' })} type="button">Approve</button>
+          <button className="min-h-11 rounded-lg border px-3 py-2 font-semibold" disabled={decide.isPending} onClick={() => {
             const reason = window.prompt('Why is this store being rejected?')?.trim()
             if (reason) decide.mutate({ id, decision: 'REJECT', reason })
           }} type="button">Reject</button>
         </div>
       )} />
+      <StorePagination page={page} size={20} total={stores.data?.totalElements ?? 0} disabled={stores.isFetching || decide.isPending} onChange={setPage} />
       {decide.error && <p className="mt-4 text-red-700" role="alert">{decide.error.message}</p>}
     </PageShell>
   )
 }
 
-function StoreList({ stores, loading, actions }: { stores?: Awaited<ReturnType<typeof listOwnedStores>>; loading: boolean; actions?: (id: string) => React.ReactNode }) {
+function StoreList({ stores, loading, actions }: { stores?: Store[]; loading: boolean; actions?: (id: string) => React.ReactNode }) {
   if (loading) return <p className="mt-8" role="status">Loading stores…</p>
   if (!stores?.length) return <p className="mt-8 text-stone-600">No stores found.</p>
   return <ul className="mt-6 space-y-3 sm:mt-8">{stores.map((store) => (
@@ -105,4 +111,12 @@ function StoreList({ stores, loading, actions }: { stores?: Awaited<ReturnType<t
       {actions?.(store.id)}
     </li>
   ))}</ul>
+}
+
+export function StorePagination({ page, size, total, disabled, onChange }: { page: number; size: number; total: number; disabled: boolean; onChange: (page: number) => void }) {
+  return <nav aria-label="Record pages" className="mt-5 flex items-center gap-3">
+    <button className="min-h-11 rounded-lg border px-4 disabled:opacity-50" disabled={disabled || page === 0} onClick={() => onChange(page - 1)} type="button">Previous</button>
+    <span>Page {page + 1}</span>
+    <button className="min-h-11 rounded-lg border px-4 disabled:opacity-50" disabled={disabled || (page + 1) * size >= total} onClick={() => onChange(page + 1)} type="button">Next</button>
+  </nav>
 }

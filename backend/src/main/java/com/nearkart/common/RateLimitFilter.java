@@ -63,7 +63,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
 	private static Rule rule(HttpServletRequest request) {
 		String method = request.getMethod(), path = request.getRequestURI();
-		if ("POST".equals(method) && path.matches("/api/v1/auth/(login|register|refresh)")) {
+		if ("POST".equals(method) && path.matches("/api/v1/auth/(login|register|refresh|recovery)")) {
 			return new Rule("auth", 20);
 		}
 		if ("GET".equals(method) && path.equals("/api/v1/search/discover")) {
@@ -72,7 +72,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 		if ("GET".equals(method) && path.startsWith("/api/v1/search")) {
 			return new Rule("search", 120);
 		}
-		if ("POST".equals(method) && (path.equals("/api/v1/reviews") || path.equals("/api/v1/reports"))) {
+		if ("POST".equals(method) && (path.equals("/api/v1/reviews") || path.equals("/api/v1/reports") || path.equals("/api/v1/requests"))) {
 			return new Rule("feedback", 30);
 		}
 		if (!"GET".equals(method) && path.startsWith("/api/v1/admin/")) {

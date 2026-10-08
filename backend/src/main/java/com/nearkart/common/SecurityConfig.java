@@ -98,8 +98,22 @@ class SecurityConfig {
 	}
 
 	@Bean
-	JwtDecoder jwtDecoder(SecretKey key) {
-		return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+	JwtDecoder jwtDecoder(SecretKey key, com.nearkart.user.UserRepository users) {
+		var decoder = NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+		decoder.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+			org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer("nearkart"),
+			jwt -> {
+				try {
+					var user = users.findById(java.util.UUID.fromString(jwt.getSubject()));
+					Number version = jwt.getClaim("authVersion");
+					if (user.isPresent() && user.get().getStatus() == com.nearkart.user.UserStatus.ACTIVE
+						&& user.get().getAuthVersion() == (version == null ? 0 : version.intValue()))
+						return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
+				} catch (IllegalArgumentException ignored) { }
+				return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
+					new org.springframework.security.oauth2.core.OAuth2Error("invalid_token", "Session is no longer active", null));
+			}));
+		return decoder;
 	}
 
 	@Bean

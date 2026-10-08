@@ -113,7 +113,7 @@ class AuthService {
 	@Transactional
 	void logout(String rawToken) {
 		if (rawToken != null && !rawToken.isBlank()) {
-			refreshTokens.findByTokenHash(hash(rawToken)).ifPresent(token -> token.revoke(clock.instant()));
+			refreshTokens.findByTokenHash(hash(rawToken)).ifPresent(token -> revokeFamily(token.familyId(), clock.instant()));
 		}
 	}
 
@@ -131,6 +131,7 @@ class AuthService {
 			.issuedAt(now)
 			.expiresAt(now.plus(properties.accessTtl()))
 			.subject(user.getId().toString())
+			.claim("authVersion", user.getAuthVersion())
 			.claim("roles", roleNames.stream().map(RoleName::name).toList())
 			.build();
 		var header = JwsHeader.with(MacAlgorithm.HS256).build();

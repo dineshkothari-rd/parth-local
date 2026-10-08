@@ -33,4 +33,9 @@ class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 			.body(ApiResponse.error("The resource already exists", List.of()));
 	}
+	@ExceptionHandler({org.springframework.orm.ObjectOptimisticLockingFailureException.class, org.springframework.dao.PessimisticLockingFailureException.class})
+	ResponseEntity<ApiResponse<Void>> concurrentUpdate() {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(ApiResponse.error("The resource changed; reload and retry", List.of()));
+	}
 }

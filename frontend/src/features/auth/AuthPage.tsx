@@ -49,7 +49,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8 sm:px-6 sm:py-12">
       <Link className="mb-8 text-xl font-bold text-emerald-800 sm:mb-10" to="/">
-        NearKart
+        Parth Local
       </Link>
       <h1 className="text-2xl font-bold text-stone-950 sm:text-3xl">{isRegister ? 'Create your account' : 'Welcome back'}</h1>
       <form className="mt-8 space-y-5" onSubmit={submit}>
@@ -77,8 +77,9 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {isSubmitting ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}
         </button>
       </form>
+      {mode === 'login' && <Link className="mt-4 inline-block text-emerald-800 underline" to="/recover">Need help accessing your account?</Link>}
       <p className="mt-6 text-sm text-stone-600">
-        {isRegister ? 'Already registered?' : 'New to NearKart?'}{' '}
+        {isRegister ? 'Already registered?' : 'New to Parth Local?'}{' '}
         <Link className="font-semibold text-emerald-800 underline" to={isRegister ? '/login' : '/register'}>
           {isRegister ? 'Sign in' : 'Create an account'}
         </Link>

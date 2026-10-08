@@ -1,3 +1,5 @@
+> Current product identity: **Parth Local**, part of **Parth Software Labs**. See [branding record](docs/BRANDING.md). Older technical aliases below remain for compatibility. Product readiness is under review.
+
 # NearKart
 
 **Search Nearby. Compare Prices. Shop Yourself.**
@@ -7,6 +9,10 @@ NearKart helps customers find products in nearby physical stores, compare price,
 ## Status
 
 Phase 7 owner dashboard is complete: responsive web/mobile screens now cover store profile and hours, catalog listings, inventory and price updates, bulk saves, and 30-day activity analytics.
+
+Zero-cost launch phases 1–4 are implemented: core-flow fixes, administration/moderation, catalog editing, audit browsing, assisted recovery, CSV inventory onboarding, freshness reminders, stock enquiries and reservations. Phases 3–4 are ready for review. Remaining launch phases are tracked in the roadmap.
+
+Repeatable API journey checks: `python3 scripts/check-phases-1-2.py` and `python3 scripts/check-phases-3-4.py`. Run only against a local API backed by a disposable test database; it creates accounts and catalog data. Set `NEARKART_CHECK_URL`, `NEARKART_CHECK_ADMIN_EMAIL` and `NEARKART_CHECK_ADMIN_PASSWORD` for that test instance.
 
 ## Architecture
 

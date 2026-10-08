@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, useMemo, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { nearbySearch, type NearbyOffer } from './api'
 import { useAuth } from '../auth/AuthContext'
 import { trackDirections } from '../stores/api'
-import { formatDistance, formatWalkTime, getNavigationUrl, getWhatsAppUrl } from '../../shared/utils/formatters'
+import { formatDistance, formatWalkTime, getNavigationUrl } from '../../shared/utils/formatters'
 import { StatusBadge } from '../../shared/components/StatusBadge'
 
 // Demo presets for zero-friction testing without manual coordinate typing
@@ -22,7 +22,7 @@ export function SearchPage() {
   const q = params.get('q')?.trim() ?? ''
   const latitude = Number(params.get('latitude'))
   const longitude = Number(params.get('longitude'))
-  const hasLocation = Number.isFinite(latitude) && Number.isFinite(longitude) && params.has('latitude')
+  const hasLocation = Number.isFinite(latitude) && Number.isFinite(longitude) && params.has('latitude') && params.has('longitude') && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
 
   const [locationError, setLocationError] = useState('')
   const [isLocating, setIsLocating] = useState(false)
@@ -30,9 +30,13 @@ export function SearchPage() {
   const [maxDistanceMeters, setMaxDistanceMeters] = useState<number | null>(null)
   const [sortBy, setSortBy] = useState<'recommended' | 'price' | 'distance' | 'freshness'>('recommended')
 
+  const page = Math.max(0, Math.min(1000000, Number(params.get('page')) || 0))
+  const sort = { recommended: 'RECOMMENDED', price: 'PRICE', distance: 'DISTANCE', freshness: 'FRESHEST' }[sortBy]
+  function resetPage() { setParams(current => { current.delete('page'); return current }) }
+
   const offers = useQuery({
-    queryKey: ['nearby-search', q, latitude, longitude],
-    queryFn: () => nearbySearch(q, latitude, longitude, accessToken ?? undefined),
+    queryKey: ['nearby-search', q, latitude, longitude, page, sort, inStockOnly, maxDistanceMeters, accessToken],
+    queryFn: () => nearbySearch(q, latitude, longitude, accessToken ?? undefined, { page, sort, inStockOnly, radiusKm: (maxDistanceMeters ?? 5000) / 1000 }),
     enabled: q.length >= 2 && hasLocation,
   })
 
@@ -68,36 +72,14 @@ export function SearchPage() {
     setParams({ q, latitude: String(data.get('latitude')), longitude: String(data.get('longitude')) })
   }
 
-  // Filter & sort offers client-side for zero latency interaction
-  const processedOffers = useMemo(() => {
-    if (!offers.data) return []
-    let list = [...offers.data]
-
-    if (inStockOnly) {
-      list = list.filter((item) => item.availability === 'AVAILABLE')
-    }
-
-    if (maxDistanceMeters !== null) {
-      list = list.filter((item) => item.distanceMeters <= maxDistanceMeters)
-    }
-
-    if (sortBy === 'price') {
-      list.sort((a, b) => Number(a.amount) - Number(b.amount))
-    } else if (sortBy === 'distance') {
-      list.sort((a, b) => a.distanceMeters - b.distanceMeters)
-    } else if (sortBy === 'freshness') {
-      list.sort((a, b) => new Date(b.observedAt).getTime() - new Date(a.observedAt).getTime())
-    }
-
-    return list
-  }, [offers.data, inStockOnly, maxDistanceMeters, sortBy])
+  const processedOffers = offers.data?.content ?? []
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-8">
       {/* Top Header */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 pb-4">
         <Link className="flex items-center gap-2 text-2xl font-black tracking-tight text-emerald-800" to="/">
-          NearKart
+          Parth Local
           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
             Hyperlocal
           </span>
@@ -230,7 +212,7 @@ export function SearchPage() {
                   ? 'bg-emerald-700 text-white shadow-sm'
                   : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
               }`}
-              onClick={() => setInStockOnly(!inStockOnly)}
+              onClick={() => { setInStockOnly(!inStockOnly); resetPage() }}
               type="button"
             >
               {inStockOnly ? '✓ In Stock Only' : 'Filter: In Stock Only'}
@@ -240,21 +222,21 @@ export function SearchPage() {
             <div className="flex items-center rounded-lg bg-stone-100 p-0.5 text-xs font-medium text-stone-700">
               <button
                 className={`rounded-md px-2.5 py-1 ${maxDistanceMeters === null ? 'bg-white font-bold text-stone-950 shadow-xs' : 'hover:text-stone-900'}`}
-                onClick={() => setMaxDistanceMeters(null)}
+                onClick={() => { setMaxDistanceMeters(null); resetPage() }}
                 type="button"
               >
                 All Distances
               </button>
               <button
                 className={`rounded-md px-2.5 py-1 ${maxDistanceMeters === 1000 ? 'bg-white font-bold text-stone-950 shadow-xs' : 'hover:text-stone-900'}`}
-                onClick={() => setMaxDistanceMeters(1000)}
+                onClick={() => { setMaxDistanceMeters(1000); resetPage() }}
                 type="button"
               >
                 &lt; 1 km
               </button>
               <button
                 className={`rounded-md px-2.5 py-1 ${maxDistanceMeters === 3000 ? 'bg-white font-bold text-stone-950 shadow-xs' : 'hover:text-stone-900'}`}
-                onClick={() => setMaxDistanceMeters(3000)}
+                onClick={() => { setMaxDistanceMeters(3000); resetPage() }}
                 type="button"
               >
                 &lt; 3 km
@@ -271,7 +253,7 @@ export function SearchPage() {
               className="rounded-lg border border-stone-300 bg-white px-2.5 py-1 font-medium text-stone-800 shadow-xs focus:border-emerald-600 focus:outline-none"
               id="sort-select"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              onChange={(e) => { setSortBy(e.target.value as typeof sortBy); resetPage() }}
             >
               <option value="recommended">Best Match (Recommended)</option>
               <option value="price">Lowest Price</option>
@@ -285,7 +267,7 @@ export function SearchPage() {
       {/* Loading Skeleton / Status */}
       {offers.isLoading && (
         <div className="mt-8 space-y-4" role="status">
-          <p className="font-medium text-stone-600">Finding nearby stores with live inventory…</p>
+          <p className="font-medium text-stone-600">Finding nearby store listings…</p>
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2, 3, 4].map((n) => (
               <div className="h-44 animate-pulse rounded-2xl border border-stone-200 bg-white p-5" key={n} />
@@ -302,7 +284,7 @@ export function SearchPage() {
       )}
 
       {/* No Results */}
-      {hasLocation && !offers.isLoading && processedOffers.length === 0 && (
+      {hasLocation && !offers.isLoading && !offers.error && processedOffers.length === 0 && (
         <div className="mt-12 text-center">
           <span className="text-4xl">🔍</span>
           <h2 className="mt-3 text-xl font-bold text-stone-900">No stores found with this item nearby</h2>
@@ -321,13 +303,17 @@ export function SearchPage() {
           />
         ))}
       </ul>
+      {hasLocation && offers.data && <nav aria-label="Search pages" className="mt-6 flex items-center gap-3">
+        <button className="min-h-11 rounded-lg border px-4 disabled:opacity-50" disabled={page === 0 || offers.isFetching} onClick={() => setParams(current => { current.set('page', String(page - 1)); return current })} type="button">Previous</button>
+        <span>Page {page + 1} · {offers.data.totalElements} offers</span>
+        <button className="min-h-11 rounded-lg border px-4 disabled:opacity-50" disabled={(page + 1) * 20 >= offers.data.totalElements || offers.isFetching} onClick={() => setParams(current => { current.set('page', String(page + 1)); return current })} type="button">Next</button>
+      </nav>}
     </main>
   )
 }
 
 function OfferCard({ offer }: { offer: NearbyOffer }) {
   const directionsUrl = getNavigationUrl(offer.storeLatitude, offer.storeLongitude)
-  const whatsappUrl = getWhatsAppUrl('9876543210', offer.storeName, `${offer.productName} ${offer.variant}`)
 
   return (
     <li className="flex min-w-0 flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:shadow-md">
@@ -370,7 +356,7 @@ function OfferCard({ offer }: { offer: NearbyOffer }) {
       </div>
 
       {/* Action Buttons: Directions, WhatsApp, View Store */}
-      <div className="mt-5 grid grid-cols-3 gap-2 border-t border-stone-100 pt-4">
+      <div className="mt-5 grid grid-cols-2 gap-2 border-t border-stone-100 pt-4">
         <a
           className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-2 text-center text-xs font-bold text-white shadow-sm transition hover:bg-emerald-800 focus:ring-2 focus:ring-emerald-500"
           href={directionsUrl}
@@ -379,14 +365,6 @@ function OfferCard({ offer }: { offer: NearbyOffer }) {
           target="_blank"
         >
           <span>🗺️</span> Navigate
-        </a>
-        <a
-          className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-600 bg-emerald-50 px-2 text-center text-xs font-bold text-emerald-900 transition hover:bg-emerald-100"
-          href={whatsappUrl}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <span>💬</span> WhatsApp
         </a>
         <Link
           className="flex min-h-10 items-center justify-center rounded-xl border border-stone-300 bg-white px-2 text-center text-xs font-bold text-stone-800 transition hover:bg-stone-50"

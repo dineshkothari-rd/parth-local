@@ -37,12 +37,13 @@ public class SearchService {
 	}
 
 	Page<SearchModels.NearbyOffer> nearby(String query, double latitude, double longitude,
-			double radiusKm, Sort sort, Pageable pageable) {
+			double radiusKm, Sort sort, boolean inStockOnly, Pageable pageable) {
 		double radiusMeters = radiusKm * 1000;
 		double latitudeDelta = radiusKm / 111.32;
 		double longitudeDelta = Math.min(180, radiusKm / (111.32 * Math.max(.01, Math.cos(Math.toRadians(latitude)))));
 		var candidates = search.nearby(query(query), latitude, longitude, radiusMeters, latitudeDelta, longitudeDelta);
 		var ranked = ranking.rank(candidates, radiusMeters, clock.instant(), freshFor, recentFor, staleAfter, sort);
+		if (inStockOnly) ranked = ranked.stream().filter(value -> value.availability().equals("AVAILABLE") || value.availability().equals("LOW_STOCK")).toList();
 		int start = Math.min(Math.toIntExact(pageable.getOffset()), ranked.size());
 		int end = Math.min(start + pageable.getPageSize(), ranked.size());
 		return new PageImpl<>(ranked.subList(start, end), pageable, ranked.size());

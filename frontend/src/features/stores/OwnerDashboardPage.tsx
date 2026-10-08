@@ -2,9 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { InventoryImport } from './InventoryImport'
+import { RequestInbox } from '../requests/Requests'
 import {
   addStoreProduct,
   getOwnedStore,
+  getFreshness,
   getStoreAnalytics,
   listStoreProducts,
   searchCatalog,
@@ -17,14 +20,17 @@ import {
   type Listing,
   type Store,
 } from './api'
-import { inputClass, PageShell } from './StorePages'
+import { inputClass, PageShell, StorePagination } from './StorePages'
 
 export function OwnerDashboardPage() {
+  const [page, setPage] = useState(0)
+  const [needsReview, setNeedsReview] = useState(false)
   const storeId = useParams().id!
   const { accessToken } = useAuth()
   const token = accessToken!
   const store = useQuery({ queryKey: ['owner-store', storeId], queryFn: () => getOwnedStore(token, storeId) })
-  const listings = useQuery({ queryKey: ['owner-listings', storeId], queryFn: () => listStoreProducts(token, storeId) })
+  const listings = useQuery({ queryKey: ['owner-listings', storeId, page, needsReview], queryFn: () => listStoreProducts(token, storeId, page, needsReview) })
+  const freshness = useQuery({ queryKey: ['owner-freshness', storeId], queryFn: () => getFreshness(token, storeId), refetchInterval: 60000 })
   const analytics = useQuery({ queryKey: ['owner-analytics', storeId], queryFn: () => getStoreAnalytics(token, storeId) })
 
   return <PageShell title={store.data?.name ?? 'Store dashboard'}>
@@ -33,8 +39,13 @@ export function OwnerDashboardPage() {
     {store.data && <>
       <p className="mt-2 text-sm font-semibold text-emerald-800">{store.data.status}</p>
       <Analytics data={analytics.data} loading={analytics.isLoading} />
-      <Inventory token={token} storeId={storeId} listings={listings.data} loading={listings.isLoading} error={listings.error} />
+      <InventoryImport key={`import-${storeId}`} token={token} storeId={storeId} />
+      <section className="mt-6 rounded-xl border p-4"><h2 className="font-bold">Stock review reminders</h2>{freshness.data && <p className="mt-2">{freshness.data.needsReview} of {freshness.data.total} items need a stock check.</p>}{freshness.error && <p role="alert">{freshness.error.message}</p>}<label className="mt-3 flex min-h-11 items-center gap-2"><input type="checkbox" checked={needsReview} onChange={event => { setNeedsReview(event.target.checked); setPage(0) }} />Show only items needing review</label><p className="text-sm text-stone-600">Check the actual stock, select those items below and save to confirm availability.</p></section>
+      <Inventory key={`${storeId}-${page}-${needsReview}-${listings.dataUpdatedAt}`} token={token} storeId={storeId} listings={listings.data?.content} loading={listings.isLoading} error={listings.error} />
+      <StorePagination page={page} size={100} total={listings.data?.totalElements ?? 0} disabled={listings.isFetching} onChange={setPage} />
+      {analytics.error && <p className="mt-4 text-red-700" role="alert">{analytics.error.message}</p>}
       <AddProduct token={token} storeId={storeId} />
+      <RequestInbox key={`requests-${storeId}`} storeId={storeId} />
       <Profile token={token} store={store.data} />
       <Hours key={`${store.data.version}-${store.data.updatedAt}`} token={token} store={store.data} />
     </>}
@@ -58,9 +69,7 @@ function Inventory({ token, storeId, listings, loading, error }: { token: string
   const save = useMutation({
     mutationFn: async (updates: { listing: Listing; quantity: number | null; availability: Listing['availability']; amount: number }[]) => {
       for (const update of updates) {
-        let current = update.listing
-        if (update.quantity !== current.quantity || update.availability !== current.availability)
-          current = await updateInventory(token, current, update.quantity, update.availability)
+        const current = await updateInventory(token, update.listing, update.quantity, update.availability)
         if (update.amount !== Number(current.amount)) await updatePrice(token, current, update.amount)
       }
     },
@@ -68,6 +77,7 @@ function Inventory({ token, storeId, listings, loading, error }: { token: string
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['owner-listings', storeId] })
       void queryClient.invalidateQueries({ queryKey: ['owner-analytics', storeId] })
+      void queryClient.invalidateQueries({ queryKey: ['owner-freshness', storeId] })
     },
   })
 
@@ -97,6 +107,7 @@ function AddProduct({ token, storeId }: { token: string; storeId: string }) {
       setSelected(null); setDraft(''); setQuery('')
       void queryClient.invalidateQueries({ queryKey: ['owner-listings', storeId] })
       void queryClient.invalidateQueries({ queryKey: ['owner-analytics', storeId] })
+      void queryClient.invalidateQueries({ queryKey: ['owner-freshness', storeId] })
     },
   })
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -104,7 +115,7 @@ function AddProduct({ token, storeId }: { token: string; storeId: string }) {
     const data = new FormData(event.currentTarget)
     add.mutate({ variantId: selected.variantId, amount: Number(data.get('amount')), currency: 'INR', quantity: data.get('quantity') === '' ? null : Number(data.get('quantity')), availability: String(data.get('availability')) as Listing['availability'] })
   }
-  return <section className="mt-10" aria-labelledby="add-product-heading"><h2 className="text-2xl font-bold" id="add-product-heading">Add a product</h2><form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setQuery(draft.trim()); setSelected(null) }} role="search"><input aria-label="Search catalog" className={inputClass} minLength={2} onChange={(event) => setDraft(event.target.value)} placeholder="Search product catalog" required value={draft}/><button className="min-h-11 rounded-lg border px-5 font-semibold">Search</button></form>{results.isLoading && <p className="mt-3" role="status">Searching catalog…</p>}{results.data && !selected && <ul className="mt-3 grid gap-2 sm:grid-cols-2">{results.data.map((item) => <li key={item.variantId}><button className="min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-left" onClick={() => setSelected(item)} type="button"><strong>{item.productName}</strong> {item.variant}{item.brand && <span className="block text-sm text-stone-500">{item.brand}</span>}</button></li>)}</ul>}{selected && <form className="mt-4 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-3" onSubmit={submit}><p className="font-bold sm:col-span-3">{selected.productName} {selected.variant}</p><label className="text-sm font-semibold">Price (₹)<input className={`${inputClass} mt-1`} min="0.01" name="amount" required step="0.01" type="number" /></label><label className="text-sm font-semibold">Quantity<input className={`${inputClass} mt-1`} min="0" name="quantity" type="number" /></label><label className="text-sm font-semibold">Availability<select className={`${inputClass} mt-1`} defaultValue="AVAILABLE" name="availability"><option value="AVAILABLE">Available</option><option value="LOW_STOCK">Low stock</option><option value="OUT_OF_STOCK">Out of stock</option><option value="UNKNOWN">Unknown</option></select></label>{add.error && <p className="text-red-700 sm:col-span-3" role="alert">{add.error.message}</p>}<div className="grid grid-cols-2 gap-2 sm:col-span-3 sm:flex"><button className="min-h-11 rounded-lg bg-emerald-700 px-5 font-semibold text-white" disabled={add.isPending}>Add product</button><button className="min-h-11 rounded-lg border px-5 font-semibold" onClick={() => setSelected(null)} type="button">Cancel</button></div></form>}</section>
+  return <section className="mt-10" aria-labelledby="add-product-heading"><h2 className="text-2xl font-bold" id="add-product-heading">Add a product</h2><form className="mt-4 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setQuery(draft.trim()); setSelected(null) }} role="search"><input aria-label="Search catalog" className={inputClass} minLength={2} onChange={(event) => setDraft(event.target.value)} placeholder="Search product catalog" required value={draft}/><button className="min-h-11 rounded-lg border px-5 font-semibold">Search</button></form>{results.isLoading && <p className="mt-3" role="status">Searching catalog…</p>}{results.data && !selected && <ul className="mt-3 grid gap-2 sm:grid-cols-2">{results.data.map((item) => <li key={item.variantId}><button className="min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-left" onClick={() => setSelected(item)} type="button"><strong>{item.productName}</strong> {item.variant}{item.brand && <span className="block text-sm text-stone-500">{item.brand}</span>}</button></li>)}</ul>}{selected && <form className="mt-4 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-3" onSubmit={submit}><p className="font-bold sm:col-span-3">{selected.productName} {selected.variant}<span className="mt-1 block break-all text-xs font-normal text-stone-600">CSV variant ID: {selected.variantId}</span></p><label className="text-sm font-semibold">Price (₹)<input className={`${inputClass} mt-1`} min="0.01" name="amount" required step="0.01" type="number" /></label><label className="text-sm font-semibold">Quantity<input className={`${inputClass} mt-1`} min="0" name="quantity" type="number" /></label><label className="text-sm font-semibold">Availability<select className={`${inputClass} mt-1`} defaultValue="AVAILABLE" name="availability"><option value="AVAILABLE">Available</option><option value="LOW_STOCK">Low stock</option><option value="OUT_OF_STOCK">Out of stock</option><option value="UNKNOWN">Unknown</option></select></label>{add.error && <p className="text-red-700 sm:col-span-3" role="alert">{add.error.message}</p>}<div className="grid grid-cols-2 gap-2 sm:col-span-3 sm:flex"><button className="min-h-11 rounded-lg bg-emerald-700 px-5 font-semibold text-white" disabled={add.isPending}>Add product</button><button className="min-h-11 rounded-lg border px-5 font-semibold" onClick={() => setSelected(null)} type="button">Cancel</button></div></form>}</section>
 }
 
 function Profile({ token, store }: { token: string; store: Store }) {

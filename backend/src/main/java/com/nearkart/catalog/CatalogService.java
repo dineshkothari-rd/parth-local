@@ -38,6 +38,7 @@ public class CatalogService {
 	private final UserRepository users;
 	private final AuditLogRepository auditLogs;
 	private final Clock clock;
+	private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 	private final Duration freshFor;
 	private final Duration recentFor;
 	private final Duration staleAfter;
@@ -45,14 +46,14 @@ public class CatalogService {
 	CatalogService(CategoryRepository categories, ProductRepository products,
 			ProductVariantRepository variants, StoreProductRepository listings,
 			InventoryRepository inventory, PriceRepository prices, PriceHistoryRepository priceHistory,
-			StoreRepository stores, UserRepository users, AuditLogRepository auditLogs, Clock clock,
+			StoreRepository stores, UserRepository users, AuditLogRepository auditLogs, Clock clock, org.springframework.jdbc.core.simple.JdbcClient jdbc,
 			@Value("${nearkart.inventory.fresh-for:PT30M}") Duration freshFor,
 			@Value("${nearkart.inventory.recent-for:PT2H}") Duration recentFor,
 			@Value("${nearkart.inventory.stale-after:P1D}") Duration staleAfter) {
 		this.categories = categories; this.products = products; this.variants = variants;
 		this.listings = listings; this.inventory = inventory; this.prices = prices;
 		this.priceHistory = priceHistory; this.stores = stores; this.users = users;
-		this.auditLogs = auditLogs; this.clock = clock; this.freshFor = freshFor;
+		this.auditLogs = auditLogs; this.clock = clock; this.jdbc = jdbc; this.freshFor = freshFor;
 		this.recentFor = recentFor; this.staleAfter = staleAfter;
 	}
 
@@ -81,6 +82,26 @@ public class CatalogService {
 	}
 
 	@Transactional
+	CatalogModels.CategoryView updateCategory(UUID id, CatalogModels.CategoryRequest request) {
+		Category value = categories.findById(id).orElseThrow(() -> notFound("Category"));
+		value.name = request.name().trim(); value.slug = slug(request.name()); value.updatedAt = clock.instant();
+		return new CatalogModels.CategoryView(value.id, value.name, value.slug);
+	}
+	@Transactional
+	CatalogModels.ProductView updateProduct(UUID id, CatalogModels.ProductRequest request) {
+		categories.findById(request.categoryId()).orElseThrow(() -> notFound("Category"));
+		Product value = products.findById(id).orElseThrow(() -> notFound("Product"));
+		value.categoryId = request.categoryId(); value.name = request.name().trim(); value.normalizedName = normalize(request.name());
+		value.brand = clean(request.brand()); value.updatedAt = clock.instant(); return productView(value);
+	}
+	@Transactional
+	CatalogModels.VariantView updateVariant(UUID id, CatalogModels.VariantRequest request) {
+		ProductVariant value = variants.findById(id).orElseThrow(() -> notFound("Variant"));
+		if (!value.productId.equals(request.productId())) throw new ApiException(BAD_REQUEST, "A variant cannot be moved to another product");
+		value.label = request.label().trim(); value.barcode = clean(request.barcode()); value.updatedAt = clock.instant(); return variantView(value);
+	}
+
+	@Transactional
 	CatalogModels.ListingView addListing(UUID ownerId, UUID storeId, CatalogModels.AddListingRequest request) {
 		ownedStore(ownerId, storeId);
 		validateStock(request.quantity(), request.availability());
@@ -96,16 +117,61 @@ public class CatalogService {
 
 	@Transactional(readOnly = true)
 	Page<CatalogModels.ListingView> ownedListings(UUID ownerId, UUID storeId, Pageable pageable) {
+		return ownedListings(ownerId, storeId, pageable, false);
+	}
+	@Transactional(readOnly = true)
+	Page<CatalogModels.ListingView> ownedListings(UUID ownerId, UUID storeId, Pageable pageable, boolean needsReview) {
 		ownedStore(ownerId, storeId); Instant now = clock.instant();
-		return listings.findAllByStoreId(storeId, pageable).map(listing -> view(listing,
+		return (needsReview ? listings.findNeedingReview(storeId, now.minus(recentFor), pageable) : listings.findAllByStoreId(storeId, pageable)).map(listing -> view(listing,
 			variants.findById(listing.productVariantId).orElseThrow(), stock(listing.id), price(listing.id), now));
+	}
+	@Transactional(readOnly = true)
+	CatalogModels.FreshnessView freshnessSummary(UUID ownerId, UUID storeId) {
+		ownedStore(ownerId, storeId);
+		return new CatalogModels.FreshnessView(listings.countNeedingReview(storeId, clock.instant().minus(recentFor)), listings.countByStoreId(storeId));
+	}
+	@Transactional
+	CatalogModels.ImportResult importRows(UUID ownerId, UUID storeId, CatalogModels.ImportRequest request) {
+		ownedStore(ownerId, storeId);
+		var seen = new java.util.HashSet<UUID>(); int added = 0, updated = 0;
+		for (var row : request.rows()) {
+			if (!seen.add(row.variantId())) throw new ApiException(BAD_REQUEST, "Duplicate variant in import");
+			validateStock(row.quantity(), row.availability());
+			var variant = variants.findById(row.variantId()).orElseThrow(() -> notFound("Variant"));
+			if (products.findById(variant.productId).orElseThrow().status != ProductStatus.ACTIVE)
+				throw new ApiException(BAD_REQUEST, "Import contains an inactive product");
+			var existing = listings.findByStoreIdAndProductVariantId(storeId, row.variantId());
+			if (existing.isPresent()) {
+				var id = existing.get().id;
+				if (!price(id).currency.equals("INR")) throw new ApiException(BAD_REQUEST, "CSV import supports INR listings only");
+				if (row.inventoryVersion() == null || row.priceVersion() == null || stock(id).version != row.inventoryVersion() || price(id).version != row.priceVersion()) throw stale("Import row");
+				updated++;
+			} else {
+				if (row.inventoryVersion() != null || row.priceVersion() != null) throw stale("Import row");
+				added++;
+			}
+		}
+		if (!request.preview()) for (var row : request.rows().stream().sorted(java.util.Comparator.comparing(CatalogModels.ImportRow::variantId)).toList()) {
+			var existing = listings.findByStoreIdAndProductVariantId(storeId, row.variantId());
+			if (existing.isEmpty()) addListing(ownerId, storeId, new CatalogModels.AddListingRequest(row.variantId(), row.amount(), "INR", row.quantity(), row.availability()));
+			else {
+				updateInventory(ownerId, existing.get().id, new CatalogModels.InventoryRequest(row.quantity(), row.availability(), row.inventoryVersion()));
+				updatePrice(ownerId, existing.get().id, new CatalogModels.PriceRequest(row.amount(), "INR", row.priceVersion()));
+			}
+		}
+		return new CatalogModels.ImportResult(added, updated, request.preview());
 	}
 
 	@Transactional
 	CatalogModels.ListingView updateInventory(UUID ownerId, UUID listingId, CatalogModels.InventoryRequest request) {
 		validateStock(request.quantity(), request.availability());
-		StoreProduct listing = ownedListing(ownerId, listingId); Inventory stock = stock(listing.id);
+		StoreProduct listing = ownedListing(ownerId, listingId);
+		Inventory stock = inventory.lockByStoreProductId(listing.id).orElseThrow(() -> notFound("Inventory"));
 		if (stock.version != request.expectedVersion()) throw stale("Inventory");
+		long held = jdbc.sql("select coalesce(sum(quantity),0) from stock_requests where store_product_id=:id and status='CONFIRMED' and expires_at>:now")
+			.param("id",listing.id).param("now",java.sql.Timestamp.from(clock.instant())).query(Long.class).single();
+		if (held > 0 && (request.quantity() == null || request.quantity() < held || !java.util.List.of(Availability.AVAILABLE, Availability.LOW_STOCK).contains(request.availability())))
+			throw new ApiException(CONFLICT, "Inventory must cover confirmed reservations; decline them first if stock changed");
 		Instant now = clock.instant(); stock.update(request.quantity(), request.availability(), ownerId, now);
 		auditLogs.save(new AuditLog(user(ownerId), "INVENTORY_UPDATED", "STORE_PRODUCT", listing.id, Map.of(), now));
 		return view(listing, variants.findById(listing.productVariantId).orElseThrow(), stock, price(listing.id), now);

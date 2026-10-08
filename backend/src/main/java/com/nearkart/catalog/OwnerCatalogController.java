@@ -39,9 +39,18 @@ class OwnerCatalogController {
 	}
 	@GetMapping("/stores/{storeId}/products")
 	ApiResponse<PageView<CatalogModels.ListingView>> list(@AuthenticationPrincipal Jwt jwt,
-			@PathVariable UUID storeId, @RequestParam(defaultValue = "0") @Min(0) int page,
-			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-		return ApiResponse.success(PageView.from(catalog.ownedListings(subject(jwt), storeId, PageRequest.of(page, size))));
+			@PathVariable UUID storeId, @RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size, @RequestParam(defaultValue = "false") boolean needsReview) {
+		return ApiResponse.success(PageView.from(catalog.ownedListings(subject(jwt), storeId, PageRequest.of(page, size, org.springframework.data.domain.Sort.by("id")), needsReview)));
+	}
+	@GetMapping("/stores/{storeId}/freshness")
+	ApiResponse<CatalogModels.FreshnessView> freshness(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID storeId) {
+		return ApiResponse.success(catalog.freshnessSummary(subject(jwt), storeId));
+	}
+	@PostMapping("/stores/{storeId}/products/import")
+	ApiResponse<CatalogModels.ImportResult> importRows(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID storeId,
+			@Valid @RequestBody CatalogModels.ImportRequest request) {
+		return ApiResponse.success(catalog.importRows(subject(jwt), storeId, request));
 	}
 	@PatchMapping("/store-products/{id}/inventory")
 	ApiResponse<CatalogModels.ListingView> inventory(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,

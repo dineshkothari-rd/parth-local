@@ -22,7 +22,7 @@ export type Store = {
   }
 }
 
-type Page<T> = { content: T[] }
+type Page<T> = { content: T[]; totalElements: number }
 
 export type CreateStoreInput = {
   name: string
@@ -64,8 +64,8 @@ export type StoreAnalytics = {
   since: string
 }
 
-export const listOwnedStores = (token: string) =>
-  apiRequest<Page<Store>>('/owner/stores', {}, token).then((page) => page.content)
+export const listOwnedStores = (token: string, page = 0) =>
+  apiRequest<Page<Store>>(`/owner/stores?page=${page}`, {}, token)
 
 export const createStore = (token: string, input: CreateStoreInput) =>
   apiRequest<Store>('/owner/stores', { method: 'POST', body: JSON.stringify(input) }, token)
@@ -77,8 +77,10 @@ export const updateStoreHours = (token: string, id: string, hours: HourInput[]) 
   apiRequest<Store>(`/owner/stores/${id}/hours`, { method: 'PUT', body: JSON.stringify({ hours }) }, token)
 export const getStoreAnalytics = (token: string, id: string) =>
   apiRequest<StoreAnalytics>(`/owner/stores/${id}/analytics`, {}, token)
-export const listStoreProducts = (token: string, id: string) =>
-  apiRequest<Page<Listing>>(`/owner/stores/${id}/products?size=100`, {}, token).then((page) => page.content)
+export const listStoreProducts = (token: string, id: string, page = 0, needsReview = false) =>
+  apiRequest<Page<Listing>>(`/owner/stores/${id}/products?size=100&page=${page}&needsReview=${needsReview}`, {}, token)
+export const getFreshness = (token: string, id: string) =>
+  apiRequest<{ needsReview: number; total: number }>(`/owner/stores/${id}/freshness`, {}, token)
 export const searchCatalog = (query: string) =>
   apiRequest<CatalogSuggestion[]>(`/search?${new URLSearchParams({ q: query, size: '20' })}`)
 export const addStoreProduct = (token: string, storeId: string, input: {
@@ -95,8 +97,8 @@ export const updatePrice = (token: string, listing: Listing, amount: number) =>
 export const trackDirections = (storeId: string) =>
   apiRequest<void>(`/stores/${storeId}/directions`, { method: 'POST' })
 
-export const listPendingStores = (token: string) =>
-  apiRequest<Page<Store>>('/admin/stores', {}, token).then((page) => page.content)
+export const listPendingStores = (token: string, page = 0) =>
+  apiRequest<Page<Store>>(`/admin/stores?page=${page}`, {}, token)
 
 export const decideStore = (token: string, id: string, decision: 'APPROVE' | 'REJECT', reason?: string) =>
   apiRequest<Store>(

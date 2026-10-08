@@ -24,6 +24,7 @@ public class User {
 	private UUID id;
 	private String email;
 	private String passwordHash;
+	private int authVersion;
 	private String displayName;
 
 	@Enumerated(EnumType.STRING)
@@ -60,6 +61,8 @@ public class User {
 	public UUID getId() {
 		return id;
 	}
+
+	public int getAuthVersion() { return authVersion; }
 
 	public String getEmail() {
 		return email;

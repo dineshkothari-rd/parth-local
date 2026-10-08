@@ -29,8 +29,8 @@ export function getWhatsAppUrl(rawPhone: string, storeName: string, productName?
     cleanPhone = `91${cleanPhone}`
   }
   const inquiryText = productName
-    ? `Hello ${storeName}, I found "${productName}" on NearKart. Is it available in your store right now?`
-    : `Hello ${storeName}, I found your store on NearKart. Are you open right now?`
+    ? `Hello ${storeName}, I found "${productName}" on Parth Local. Is it available in your store right now?`
+    : `Hello ${storeName}, I found your store on Parth Local. Are you open right now?`
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(inquiryText)}`
 }
 

@@ -36,7 +36,7 @@ class SearchController {
 
 	@GetMapping
 	ApiResponse<List<SearchModels.Suggestion>> suggestions(@RequestParam @Size(max = 120) String q,
-			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int page,
 			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
 		return ApiResponse.success(search.suggestions(q, PageRequest.of(page, size)));
 	}
@@ -47,10 +47,11 @@ class SearchController {
 			@RequestParam @DecimalMin("-180") @DecimalMax("180") double longitude,
 			@RequestParam(defaultValue = "5") @DecimalMin("0.1") @DecimalMax("25") double radiusKm,
 			@RequestParam(defaultValue = "RECOMMENDED") Sort sort,
-			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "false") boolean inStockOnly,
+			@RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int page,
 			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
 			@AuthenticationPrincipal Jwt jwt) {
-		var result = PageView.from(search.nearby(q, latitude, longitude, radiusKm, sort, PageRequest.of(page, size)));
+		var result = PageView.from(search.nearby(q, latitude, longitude, radiusKm, sort, inStockOnly, PageRequest.of(page, size)));
 		analytics.recordSearchImpressions(result.content().stream().map(SearchModels.NearbyOffer::storeId).toList());
 		if (jwt != null) customers.recordSearch(UUID.fromString(jwt.getSubject()), q);
 		return ApiResponse.success(result);

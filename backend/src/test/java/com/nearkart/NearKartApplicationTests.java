@@ -10,6 +10,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.nearkart.auth.RefreshTokenRepository;
@@ -55,6 +56,18 @@ class NearKartApplicationTests {
 	private JdbcClient jdbc;
 	@MockitoBean
 	private StoreAnalyticsService analytics;
+
+	@Test
+	void adminRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/admin/users")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@WithMockUser(roles = "CUSTOMER")
+	void customerCannotReadAdminData() throws Exception {
+		for (String resource : new String[] {"users", "moderation/stores", "reviews", "reports", "audit-logs", "catalog/products"})
+			mockMvc.perform(get("/api/v1/admin/" + resource)).andExpect(status().isForbidden());
+	}
 
 	@Test
 	void healthIsPublic() throws Exception {

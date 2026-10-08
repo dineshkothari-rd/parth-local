@@ -3,6 +3,9 @@ package com.nearkart.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
+import java.util.UUID;
+import java.util.List;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,5 +60,21 @@ class AuthServiceTests {
 		assertThat(passwords.matches("A-secure-password-123", user.getValue().getPasswordHash())).isTrue();
 		assertThat(session.response().accessToken()).isNotBlank();
 		verify(refreshTokens).save(any(RefreshToken.class));
+	}
+
+	@Test
+	void logoutRevokesRotatedTokensInTheSameSessionFamily() {
+		var refreshTokens = mock(RefreshTokenRepository.class);
+		var presented = mock(RefreshToken.class);
+		var replacement = mock(RefreshToken.class);
+		var family = UUID.randomUUID();
+		var now = Instant.parse("2026-10-06T12:00:00Z");
+		when(refreshTokens.findByTokenHash(anyString())).thenReturn(Optional.of(presented));
+		when(presented.familyId()).thenReturn(family);
+		when(refreshTokens.findAllByFamilyIdAndRevokedAtIsNull(family)).thenReturn(List.of(replacement));
+		var service = new AuthService(mock(UserRepository.class), mock(RoleRepository.class), refreshTokens,
+			null, null, null, Clock.fixed(now, ZoneOffset.UTC));
+		service.logout("previously-rotated-token");
+		verify(replacement).revoke(now);
 	}
 }
