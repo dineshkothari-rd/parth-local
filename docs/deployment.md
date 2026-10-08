@@ -1,5 +1,12 @@
 # Deploy and test NearKart
 
+## Current Vercel testing preview — 8 October 2026
+
+Canonical frontend preview: https://parth-local.vercel.app. Vercel root frontend, Vite dist, Node 22. API requests remain same-origin /api and proxy to the existing Render Java backend. Two backend health checks timed out; deployed frontend does not prove functional login/search/store flows. Backend recovery remains necessary. No backend or customer data was deleted.
+
+Free Hobby hosting is for personal, non-commercial testing; use an eligible plan before business launch. No paid resources were purchased. See the parent studio docs/DEPLOYMENT.md for the full portfolio status.
+
+
 NearKart deploys as a Vercel frontend, a Render Docker web service, and Render PostgreSQL. The frontend proxies `/api/*` to Render, so authentication cookies remain first-party in the browser.
 
 ## 1. Deploy the frontend on Vercel
