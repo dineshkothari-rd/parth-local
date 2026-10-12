@@ -4,9 +4,9 @@ spring:
   autoconfigure:
     exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:nearkart}}
-    username: ${POSTGRES_USER:nearkart}
-    password: ${POSTGRES_PASSWORD:nearkart_dev}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${POSTGRES_DB:nearkart}}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: true
   jpa:

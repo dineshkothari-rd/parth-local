@@ -10,9 +10,8 @@
 | Node.js               |         24.19.0 | Use Node 24 LTS                 |
 | npm                   |         11.17.0 | Package manager                 |
 | Git                   |          2.50.1 | Supported                       |
-| Docker                |          29.8.0 | Local infrastructure            |
-| Docker Compose        |           5.5.1 | Local orchestration             |
-| `psql` / `pg_isready` |   Not installed | PostgreSQL runs in Docker       |
+| Database              | Managed cloud | Local Docker removed12October2026 |
+| `psql` / `pg_isready` |   Not installed | Use managed PostgreSQL       |
 
 ## Version baseline
 
@@ -28,7 +27,7 @@ Frontend patch versions are committed in `package-lock.json`. Upgrades require p
 
 ```sh
 cp .env.example .env
-docker compose up -d postgres
+# Configure managed PostgreSQL credentials in .env; no local database startup.
 ```
 
 Then run these in separate terminals:
@@ -38,7 +37,7 @@ cd backend && set -a && source ../.env && set +a && ./mvnw spring-boot:run
 cd frontend && npm ci && npm run dev
 ```
 
-Validation includes backend tests, Flyway migration against PostgreSQL, `/actuator/health`, frontend tests/typecheck/build, and `docker compose config`.
+Validation includes backend tests, Flyway migration against PostgreSQL, `/actuator/health`, frontend tests/typecheck/build, and cloud database connectivity.
 
 ## Environment policy
 

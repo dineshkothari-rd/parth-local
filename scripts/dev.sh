@@ -10,7 +10,7 @@ if [ -z "${JAVA_HOME:-}" ]; then
 	fi
 fi
 
-for tool in docker java node npm openssl curl lsof pgrep; do
+for tool in java node npm openssl curl lsof pgrep; do
 	command -v "$tool" >/dev/null 2>&1 || { echo "Missing required command: $tool" >&2; exit 1; }
 done
 
@@ -33,6 +33,15 @@ set -a
 . "$ROOT/.env"
 set +a
 
+case "${SPRING_DATASOURCE_URL:-}" in
+	jdbc:postgresql://*) ;;
+	*) echo "Set SPRING_DATASOURCE_URL to your managed PostgreSQL connection in .env." >&2; exit 1 ;;
+esac
+case "$SPRING_DATASOURCE_URL" in
+	*localhost*|*127.0.0.1*|*\[::1\]*) echo "Local databases are disabled. Use managed PostgreSQL." >&2; exit 1 ;;
+esac
+[ -n "${POSTGRES_USER:-}" ] && [ -n "${POSTGRES_PASSWORD:-}" ] || { echo "Set the managed database username and password in .env." >&2; exit 1; }
+
 backend_pid=
 frontend_pid=
 stop_tree() {
@@ -47,14 +56,11 @@ cleanup() {
 	[ -z "$frontend_pid" ] || stop_tree "$frontend_pid"
 	[ -z "$backend_pid" ] || wait "$backend_pid" 2>/dev/null || true
 	[ -z "$frontend_pid" ] || wait "$frontend_pid" 2>/dev/null || true
-	docker compose -f "$ROOT/docker-compose.yml" stop postgres >/dev/null 2>&1 || true
 	echo "NearKart stopped."
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-docker compose -f "$ROOT/docker-compose.yml" up -d --wait postgres
 
 if [ ! -f "$ROOT/frontend/node_modules/.package-lock.json" ] || [ "$ROOT/frontend/package-lock.json" -nt "$ROOT/frontend/node_modules/.package-lock.json" ]; then
 	(cd "$ROOT/frontend" && npm ci)

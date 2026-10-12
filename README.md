@@ -31,35 +31,33 @@ nearkart/
 ├── frontend/        # React application
 ├── backend/         # Spring Boot application
 ├── docs/            # Product and engineering decisions
-├── docker/          # Optional container support files
 ├── scripts/         # Small cross-project developer scripts
-└── docker-compose.yml
+└── .env.example     # Managed database configuration
 ```
 
 ## Prerequisites
 
 - Java 17 LTS (e.g. Azul Zulu 17 or Temurin 17)
 - Node.js 24 LTS and npm 11
-- Docker 29+ with Compose
 - Git
 
-Maven and PostgreSQL do not need global installation: use the committed Maven wrapper and Docker service.
+Maven and PostgreSQL do not need global installation: use the committed Maven wrapper and managed cloud PostgreSQL.
 
 ## Setup, development, testing, and deployment
 
-Start the complete local stack with one command:
+Configure managed database credentials in `.env`, then start the application processes:
 
 ```sh
 ./scripts/dev.sh
 ```
 
-On first run it creates `.env` with a random local JWT secret, installs frontend dependencies, starts PostgreSQL, backend, and frontend, and stops them together on `Ctrl+C`.
+On first run it creates `.env` with a random local JWT secret, installs frontend dependencies, connects to managed PostgreSQL, starts backend and frontend, and stops them together on `Ctrl+C`.
 
 Manual setup:
 
 ```sh
 cp .env.example .env
-docker compose up -d postgres
+ # Fill SPRING_DATASOURCE_URL, POSTGRES_USER and POSTGRES_PASSWORD with managed DB credentials.
 ```
 
 Then run these in separate terminals:
@@ -87,5 +85,5 @@ Copy `.env.example`, replace `JWT_SECRET` with at least 32 random bytes, and loa
 ## Troubleshooting
 
 - `mvn: command not found`: use `backend/mvnw`.
-- `psql: command not found`: use the PostgreSQL container through Docker Compose.
-- Port conflict: the planned defaults are frontend `5173`, backend `8080`, PostgreSQL `5432`.
+- Database unavailable: configure managed PostgreSQL credentials; no local database is started.
+- Port conflict: the planned defaults are frontend `5173`, backend `8080`; the database is remote.

@@ -50,7 +50,7 @@ Search, ranking, maps-link generation, and event recording have small service co
 
 ## Deployment
 
-Phase 1 runs the API and PostgreSQL in Docker Compose and the Vite dev server locally. Production starts as three units: static frontend on a CDN-capable host, one stateless backend service, and managed PostgreSQL. Scale the backend horizontally after externalizing refresh-token persistence and enforcing database-backed concurrency.
+Development runs the API and Vite server locally against managed cloud PostgreSQL. Local Docker/database orchestration was removed12October2026. Production starts as three units: static frontend on a CDN-capable host, one stateless backend service, and managed PostgreSQL. Scale the backend horizontally after externalizing refresh-token persistence and enforcing database-backed concurrency.
 
 ## Testing strategy
 
